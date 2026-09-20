@@ -33,7 +33,6 @@ class YandexBusCard extends HTMLElement {
     
     let routes = attrs.routes || [];
 
-    // Если указаны конкретные автобусы в настройках, фильтруем
     const selected = (this._config.selected_buses || []).map(s => String(s).trim());
     if (selected.length > 0) {
       routes = routes.filter(r => selected.includes(String(r.route)));
@@ -253,12 +252,19 @@ class YandexBusCardEditor extends HTMLElement {
   }
 }
 
-customElements.define('yandex-bus-card-editor', YandexBusCardEditor);
-customElements.define('yandex-bus-card', YandexBusCard);
+if (!customElements.get('yandex-bus-card-editor')) {
+  customElements.define('yandex-bus-card-editor', YandexBusCardEditor);
+}
+
+if (!customElements.get('yandex-bus-card')) {
+  customElements.define('yandex-bus-card', YandexBusCard);
+}
 
 window.customCards = window.customCards || [];
-window.customCards.push({
-  type: 'yandex-bus-card',
-  name: 'Яндекс Автобусы (Остановка)',
-  description: 'Табло остановки с живым расписанием, фильтром маршрутов и кликом на карту'
-});
+if (!window.customCards.some(card => card.type === 'yandex-bus-card')) {
+  window.customCards.push({
+    type: 'yandex-bus-card',
+    name: 'Яндекс Автобусы (Остановка)',
+    description: 'Табло остановки с живым расписанием, фильтром маршрутов и кликом на карту'
+  });
+}
