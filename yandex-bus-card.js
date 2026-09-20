@@ -1,4 +1,4 @@
-// Универсальный визуальный редактор
+// Универсальный редактор
 class YandexBusBaseEditor extends HTMLElement {
   set hass(hass) {
     this._hass = hass;
@@ -124,7 +124,6 @@ class YandexBusBaseEditor extends HTMLElement {
   }
 }
 
-// Вспомогательная функция склонения остановок
 function formatStopsLeft(r, minsLeft) {
   let count = 0;
   if (r.stops_left !== undefined && r.stops_left !== null) {
@@ -446,6 +445,7 @@ class YandexBusCityPylonCard extends HTMLElement {
       const card = document.createElement('ha-card');
       this.content = document.createElement('div');
       card.appendChild(this.content);
+      this.appendChild(card);
     }
     this.updateView();
   }
