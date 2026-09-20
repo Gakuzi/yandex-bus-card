@@ -27,23 +27,20 @@ class YandexBusCard extends HTMLElement {
       return;
     }
 
-    const title = this._config.title || stateObj.attributes.friendly_name || 'Остановка';
-    const stopId = stateObj.attributes.stop_id || '';
+    const attrs = stateObj.attributes || {};
+    const stopName = this._config.title || attrs.stop_name || attrs.friendly_name || 'Остановка';
+    const stopId = attrs.stop_id || '';
     
-    let buses = stateObj.attributes.buses || [];
-    if (!Array.isArray(buses) || buses.length === 0) {
-      buses = [
-        { number: stateObj.state || '10', destination: stateObj.attributes.destination || 'В центр', time: stateObj.state || '5', is_live: true }
-      ];
-    }
+    let routes = attrs.routes || [];
 
-    const selected = this._config.selected_buses || [];
+    // Если указаны конкретные автобусы в настройках, фильтруем
+    const selected = (this._config.selected_buses || []).map(s => String(s).trim());
     if (selected.length > 0) {
-      buses = buses.filter(b => selected.includes(String(b.number)));
+      routes = routes.filter(r => selected.includes(String(r.route)));
     }
 
     const mapStopUrl = stopId 
-      ? `https://yandex.ru/maps/20/arkhangelsk/?masstransit%5BstopId%5D=stop__${stopId}`
+      ? `https://yandex.ru/maps/20/arkhangelsk/?masstransit%5BstopId%5D=stop__${stopId}&l=masstransit`
       : 'https://yandex.ru/maps/20/arkhangelsk/';
 
     this.content.innerHTML = `
@@ -86,7 +83,7 @@ class YandexBusCard extends HTMLElement {
           letter-spacing: 0.2px;
         }
         .yb-subtitle {
-          font-size: 12px;
+          font-size: 11px;
           color: #8c9ba5;
         }
         .yb-list {
@@ -99,7 +96,7 @@ class YandexBusCard extends HTMLElement {
           align-items: center;
           justify-content: space-between;
           background: rgba(255,255,255,0.04);
-          border: 1px solid rgba(255,255,255,0.04);
+          border: 1px solid rgba(255,255,255,0.05);
           padding: 10px 14px;
           border-radius: 12px;
           text-decoration: none;
@@ -116,9 +113,9 @@ class YandexBusCard extends HTMLElement {
           color: #fff;
           font-weight: 700;
           font-size: 15px;
-          padding: 3px 10px;
+          padding: 4px 10px;
           border-radius: 8px;
-          min-width: 30px;
+          min-width: 32px;
           text-align: center;
           box-shadow: 0 2px 6px rgba(2,136,209,0.4);
         }
@@ -127,34 +124,20 @@ class YandexBusCard extends HTMLElement {
           flex: 1;
         }
         .yb-dest {
-          font-size: 14px;
-          font-weight: 500;
+          font-size: 13px;
+          font-weight: 600;
           color: #f1f3f5;
         }
-        .yb-status {
+        .yb-times-list {
           font-size: 11px;
-          color: #4cd964;
-          display: flex;
-          align-items: center;
-          gap: 5px;
-        }
-        .yb-dot {
-          width: 6px;
-          height: 6px;
-          background: #4cd964;
-          border-radius: 50%;
-          box-shadow: 0 0 6px #4cd964;
+          color: #8c9ba5;
+          margin-top: 2px;
         }
         .yb-time {
           font-size: 16px;
           font-weight: 700;
           color: #ffcc00;
           text-align: right;
-        }
-        .yb-time span {
-          font-size: 11px;
-          color: #8c9ba5;
-          margin-left: 2px;
         }
       </style>
 
@@ -165,28 +148,29 @@ class YandexBusCard extends HTMLElement {
               <ha-icon icon="mdi:bus-stop" style="--mdc-icon-size: 22px;"></ha-icon>
             </div>
             <div>
-              <div class="yb-title">${title}</div>
-              <div class="yb-subtitle">Яндекс Карты (нажмите для перехода)</div>
+              <div class="yb-title">${stopName}</div>
+              <div class="yb-subtitle">Яндекс Карты (открыть остановку)</div>
             </div>
           </div>
-          <ha-icon icon="mdi:wifi" style="color: #4cd964; --mdc-icon-size: 20px;"></ha-icon>
+          <ha-icon icon="mdi:bus" style="color: #4cd964; --mdc-icon-size: 20px;"></ha-icon>
         </div>
 
         <div class="yb-list">
-          ${buses.map(b => {
-            const busMapUrl = `https://yandex.ru/maps/20/arkhangelsk/?text=автобус%20${encodeURIComponent(b.number)}`;
+          ${routes.length === 0 ? '<div style="color: #8c9ba5; font-size: 13px; padding: 6px;">Нет рейсов по заданным фильтрам</div>' : ''}
+          ${routes.map(r => {
+            const nextTime = r.next || (r.times && r.times[0]) || '-';
+            const upcoming = (r.times || []).slice(1, 4).join(', ');
+            const busUrl = r.map_url || `https://yandex.ru/maps/20/arkhangelsk/?text=автобус%20${encodeURIComponent(r.route)}`;
+
             return `
-              <div class="yb-row" onclick="window.open('${busMapUrl}', '_blank')">
+              <div class="yb-row" onclick="window.open('${busUrl}', '_blank')">
                 <div style="display: flex; align-items: center;">
-                  <div class="yb-num">${b.number}</div>
+                  <div class="yb-num">${r.route}</div>
                   <div class="yb-dest-box">
-                    <div class="yb-dest">${b.destination || 'По маршруту'}</div>
-                    <div class="yb-status">
-                      <span class="yb-dot"></span> Онлайн
-                    </div>
+                    <div class="yb-dest">Автобус ${r.route}</div>${upcoming ? `<div class="yb-times-list">Далее: ${upcoming}</div>` : ''}
                   </div>
                 </div>
-                <div class="yb-time">${b.time}<span>мин</span></div>
+                <div class="yb-time">${nextTime}</div>
               </div>
             `;
           }).join('')}
@@ -202,7 +186,7 @@ class YandexBusCard extends HTMLElement {
   static getStubConfig() {
     return {
       entity: '',
-      title: 'Остановка',
+      title: '',
       selected_buses: []
     };
   }
@@ -222,7 +206,9 @@ class YandexBusCardEditor extends HTMLElement {
   render() {
     if (!this._hass || !this._config) return;
 
-    const entities = Object.keys(this._hass.states).filter(e => e.startsWith('sensor.yandex_bus') || e.includes('bus'));
+    const entities = Object.keys(this._hass.states).filter(e => 
+      e.startsWith('sensor.') && (e.includes('taimyrskaia') || e.includes('bus') || e.includes('yandex'))
+    );
 
     this.innerHTML = `
       <div style="display: flex; flex-direction: column; gap: 14px; padding: 12px 0;">
@@ -235,14 +221,14 @@ class YandexBusCardEditor extends HTMLElement {
         </div>
 
         <div>
-          <label style="display: block; font-weight: 500; margin-bottom: 4px;">Название остановки</label>
-          <input type="text" id="title_input" value="${this._config.title || ''}" placeholder="Например: Пл. Ленина" style="width: 100%; padding: 8px; border-radius: 6px; background: var(--card-background-color); color: var(--primary-text-color); border: 1px solid var(--divider-color);">
+          <label style="display: block; font-weight: 500; margin-bottom: 4px;">Свое название остановки (необязательно)</label>
+          <input type="text" id="title_input" value="${this._config.title || ''}" placeholder="По умолчанию из сенсора" style="width: 100%; padding: 8px; border-radius: 6px; background: var(--card-background-color); color: var(--primary-text-color); border: 1px solid var(--divider-color);">
         </div>
 
         <div>
           <label style="display: block; font-weight: 500; margin-bottom: 4px;">Нужные маршруты (через запятую)</label>
-          <input type="text" id="buses_input" value="${(this._config.selected_buses || []).join(', ')}" placeholder="Например: 10, 54, 65 (пусто = показывать все)" style="width: 100%; padding: 8px; border-radius: 6px; background: var(--card-background-color); color: var(--primary-text-color); border: 1px solid var(--divider-color);">
-          <div style="font-size: 11px; color: var(--secondary-text-color); margin-top: 4px;">Оставьте пустым, чтобы выводить все автобусы с этой остановки.</div>
+          <input type="text" id="buses_input" value="${(this._config.selected_buses || []).join(', ')}" placeholder="Например: 1, 5, 10 (пусто = показывать все)" style="width: 100%; padding: 8px; border-radius: 6px; background: var(--card-background-color); color: var(--primary-text-color); border: 1px solid var(--divider-color);">
+          <div style="font-size: 11px; color: var(--secondary-text-color); margin-top: 4px;">Оставьте пустым, чтобы выводить все автобусы.</div>
         </div>
       </div>
     `;
