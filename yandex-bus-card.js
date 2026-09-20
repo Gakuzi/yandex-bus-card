@@ -11,7 +11,7 @@ class YandexBusCard extends HTMLElement {
   }
 
   setConfig(config) {
-    this._config = config || {};
+    this._config = config ? { ...config } : {};
     this.updateView();
   }
 
@@ -24,7 +24,7 @@ class YandexBusCard extends HTMLElement {
         <div style="padding: 24px; text-align: center; color: var(--secondary-text-color);">
           <ha-icon icon="mdi:bus-stop" style="--mdc-icon-size: 40px; color: var(--primary-color); margin-bottom: 8px;"></ha-icon>
           <div style="font-size: 16px; font-weight: 600; color: var(--primary-text-color);">Остановка не выбрана</div>
-          <div style="font-size: 13px; margin-top: 4px;">Выберите сенсор остановки в форме настройки</div>
+          <div style="font-size: 13px; margin-top: 4px;">Выберите сенсор остановки в редакторе</div>
         </div>
       `;
       return;
@@ -42,7 +42,6 @@ class YandexBusCard extends HTMLElement {
     
     let routes = attrs.routes || [];
 
-    // Фильтрация маршрутов
     let selected = this._config.selected_buses || [];
     if (typeof selected === 'string') {
       selected = selected.split(',').map(s => s.trim()).filter(Boolean);
@@ -191,7 +190,7 @@ class YandexBusCard extends HTMLElement {
     `;
   }
 
-  static getConfigElement() {
+  static async getConfigElement() {
     return document.createElement('yandex-bus-card-editor');
   }
 
@@ -204,7 +203,6 @@ class YandexBusCard extends HTMLElement {
   }
 }
 
-// Редактор на базе ha-form (нативный визуальный конструктор Home Assistant)
 class YandexBusCardEditor extends HTMLElement {
   set hass(hass) {
     this._hass = hass;
@@ -214,7 +212,7 @@ class YandexBusCardEditor extends HTMLElement {
   }
 
   setConfig(config) {
-    this._config = config || {};
+    this._config = config ? { ...config } : {};
     this.render();
   }
 
@@ -224,14 +222,16 @@ class YandexBusCardEditor extends HTMLElement {
       this.appendChild(this._form);
 
       this._form.addEventListener('value-changed', (ev) => {
-        const value = ev.detail.value;
+        ev.stopPropagation();
+        const value = ev.detail.value || {};
         const newConfig = { ...this._config, ...value };
-        const event = new CustomEvent('config-changed', {
+        this._config = newConfig;
+
+        this.dispatchEvent(new CustomEvent('config-changed', {
           detail: { config: newConfig },
           bubbles: true,
           composed: true
-        });
-        this.dispatchEvent(event);
+        }));
       });
     }
 
@@ -239,12 +239,13 @@ class YandexBusCardEditor extends HTMLElement {
       this._form.hass = this._hass;
     }
 
+    const conf = this._config || {};
     this._form.data = {
-      entity: this._config.entity || '',
-      title: this._config.title || '',
-      selected_buses: Array.isArray(this._config.selected_buses) 
-        ? this._config.selected_buses.join(', ') 
-        : (this._config.selected_buses || '')
+      entity: conf.entity || '',
+      title: conf.title || '',
+      selected_buses: Array.isArray(conf.selected_buses) 
+        ? conf.selected_buses.join(', ') 
+        : (conf.selected_buses || '')
     };
 
     this._form.schema = [
