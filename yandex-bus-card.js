@@ -90,7 +90,6 @@ class YandexBusCard extends HTMLElement {
     const showWord = this._config.show_prefix === true;
     const showSubtext = this._config.show_subtext === true;
 
-    // Настройки габаритов
     const maxHeightStyle = this._config.max_height ? `max-height: ${this._config.max_height}; overflow-y: auto;` : '';
     const widthStyle = this._config.card_width ? `width: ${this._config.card_width}; margin: 0 auto;` : '';
 
@@ -155,7 +154,6 @@ class YandexBusCard extends HTMLElement {
           padding-right: ${this._config.max_height ? '4px' : '0'};
         }
 
-        /* Тонкий скроллбар */
         .yb-items-list::-webkit-scrollbar {
           width: 4px;
         }
@@ -170,7 +168,7 @@ class YandexBusCard extends HTMLElement {
           -webkit-backdrop-filter: blur(14px);
           border: 1px solid rgba(255, 255, 255, 0.07);
           border-radius: 12px;
-          padding: 8px 12px;
+          padding: 10px 14px;
           display: flex;
           align-items: center;
           gap: 12px;
@@ -192,7 +190,7 @@ class YandexBusCard extends HTMLElement {
           padding-right: 10px;
         }
         .yb-badge-num {
-          font-size: 22px;
+          font-size: 24px;
           font-weight: 800;
           line-height: 1;
           letter-spacing: -0.5px;
@@ -209,7 +207,7 @@ class YandexBusCard extends HTMLElement {
           flex: 1;
           display: flex;
           flex-direction: column;
-          gap: 4px;
+          gap: 6px;
           min-width: 0;
         }
         .yb-route-meta {
@@ -225,7 +223,7 @@ class YandexBusCard extends HTMLElement {
 
         .yb-line-wrap {
           position: relative;
-          height: 24px;
+          height: 28px;
           display: flex;
           align-items: center;
         }
@@ -278,10 +276,10 @@ class YandexBusCard extends HTMLElement {
           background: #ffffff;
         }
 
-        /* Чистая иконка без подложек, ореолов и рамок */
+        /* Увеличенная и четкая иконка автобуса */
         .yb-bus-runner {
           position: absolute;
-          top: -2px;
+          top: -1px;
           transform: translateX(-50%);
           display: flex;
           align-items: center;
@@ -290,8 +288,8 @@ class YandexBusCard extends HTMLElement {
           pointer-events: none;
         }
         .yb-bus-runner ha-icon {
-          --mdc-icon-size: 19px;
-          filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.7));
+          --mdc-icon-size: 25px;
+          filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.8));
         }
 
         .yb-subtext-points {
