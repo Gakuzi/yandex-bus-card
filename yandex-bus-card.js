@@ -31,38 +31,6 @@ class YandexBusCard extends HTMLElement {
     }, 1000);
   }
 
-  closeModal() {
-    const modal = this.querySelector('.yb-modal-overlay');
-    if (modal) modal.remove();
-  }
-
-  openModal(url, title) {
-    this.closeModal();
-
-    const overlay = document.createElement('div');
-    overlay.className = 'yb-modal-overlay';
-    overlay.innerHTML = `
-      <div class="yb-modal-backdrop"></div>
-      <div class="yb-modal-container">
-        <div class="yb-modal-header">
-          <div class="yb-modal-title">
-            <ha-icon icon="mdi:bus" style="--mdc-icon-size: 20px; color: #ffcc00;"></ha-icon>
-            <span>${title}</span>
-          </div>
-          <button class="yb-modal-close" title="Закрыть">✕</button>
-        </div>
-        <div class="yb-modal-body">
-          <iframe src="${url}" frameborder="0" allow="geolocation" allowfullscreen></iframe>
-        </div>
-      </div>
-    `;
-
-    overlay.querySelector('.yb-modal-backdrop').addEventListener('click', () => this.closeModal());
-    overlay.querySelector('.yb-modal-close').addEventListener('click', () => this.closeModal());
-    this.appendChild(overlay);
-  }
-
-  // Расчет оставшихся минут до времени "ЧЧ:ММ"
   _getMinutesLeft(timeStr) {
     if (!timeStr || !timeStr.includes(':')) return 0;
     const parts = timeStr.split(':');
@@ -74,7 +42,7 @@ class YandexBusCard extends HTMLElement {
     const curM = now.getMinutes();
 
     let diff = (targetH * 60 + targetM) - (curH * 60 + curM);
-    if (diff < 0) diff += 1440; // перенос через полночь
+    if (diff < 0) diff += 1440;
     return diff;
   }
 
@@ -84,10 +52,9 @@ class YandexBusCard extends HTMLElement {
     
     if (!entityId) {
       this.content.innerHTML = `
-        <div style="padding: 30px; text-align: center; color: #94a3b8; font-family: sans-serif;">
+        <div style="padding: 30px; text-align: center; color: #94a3b8;">
           <ha-icon icon="mdi:bus-stop" style="--mdc-icon-size: 44px; color: #38bdf8; margin-bottom: 8px;"></ha-icon>
           <div style="font-size: 16px; font-weight: 600; color: #f8fafc;">Остановка не выбрана</div>
-          <div style="font-size: 13px; margin-top: 4px;">Укажите сенсор остановки в настройках карточки</div>
         </div>
       `;
       return;
@@ -95,7 +62,7 @@ class YandexBusCard extends HTMLElement {
 
     const stateObj = this._hass.states[entityId];
     if (!stateObj) {
-      this.content.innerHTML = `<div style="padding: 18px; color: #ef4444; font-family: sans-serif;">Сущность <b>${entityId}</b> не найдена</div>`;
+      this.content.innerHTML = `<div style="padding: 18px; color: #ef4444;">Сущность <b>${entityId}</b> не найдена</div>`;
       return;
     }
 
@@ -118,8 +85,6 @@ class YandexBusCard extends HTMLElement {
       : 'https://yandex.ru/maps/20/arkhangelsk/?l=masstransit';
 
     const nowTimeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-    // Палитра акцентных цветов по маршрутам (как на макете)
     const routeColors = ['#f59e0b', '#38bdf8', '#34d399', '#a855f7', '#fb7185'];
 
     this.content.innerHTML = `
@@ -177,7 +142,7 @@ class YandexBusCard extends HTMLElement {
         .yb-items-list {
           display: flex;
           flex-direction: column;
-          gap: 12px;
+          gap: 14px;
         }
 
         .yb-route-box {
@@ -186,7 +151,7 @@ class YandexBusCard extends HTMLElement {
           -webkit-backdrop-filter: blur(16px);
           border: 1px solid rgba(255, 255, 255, 0.07);
           border-radius: 18px;
-          padding: 14px 18px;
+          padding: 16px 18px;
           display: flex;
           align-items: center;
           gap: 18px;
@@ -195,7 +160,7 @@ class YandexBusCard extends HTMLElement {
           position: relative;
         }
         .yb-route-box:hover {
-          background: rgba(255, 255, 255, 0.06);
+          background: rgba(255, 255, 255, 0.07);
           transform: translateY(-1px);
         }
 
@@ -209,7 +174,7 @@ class YandexBusCard extends HTMLElement {
           padding-right: 14px;
         }
         .yb-badge-num {
-          font-size: 26px;
+          font-size: 28px;
           font-weight: 800;
           line-height: 1;
           letter-spacing: -0.5px;
@@ -218,7 +183,7 @@ class YandexBusCard extends HTMLElement {
           font-size: 11px;
           color: #94a3b8;
           font-weight: 600;
-          margin-top: 4px;
+          margin-top: 5px;
           text-transform: uppercase;
         }
 
@@ -226,7 +191,7 @@ class YandexBusCard extends HTMLElement {
           flex: 1;
           display: flex;
           flex-direction: column;
-          gap: 8px;
+          gap: 10px;
           min-width: 0;
         }
         .yb-route-meta {
@@ -235,7 +200,7 @@ class YandexBusCard extends HTMLElement {
           gap: 8px;
         }
         .yb-route-meta-label {
-          font-size: 10px;
+          font-size: 11px;
           text-transform: uppercase;
           letter-spacing: 0.5px;
           color: #64748b;
@@ -245,16 +210,12 @@ class YandexBusCard extends HTMLElement {
           font-size: 14px;
           font-weight: 600;
           color: #f8fafc;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
         }
 
-        /* Линия движения с точками */
+        /* Linia we de animet wit klia layt drop we de rɔn */
         .yb-line-wrap {
           position: relative;
-          height: 38px;
-          margin: 4px 0 2px 0;
+          height: 36px;
           display: flex;
           align-items: center;
         }
@@ -262,21 +223,31 @@ class YandexBusCard extends HTMLElement {
           position: absolute;
           left: 0;
           right: 0;
-          height: 3px;
-          background: rgba(255, 255, 255, 0.12);
-          border-radius: 3px;
+          height: 4px;
+          background: rgba(255, 255, 255, 0.1);
+          border-radius: 4px;
         }
         .yb-track-progress {
           position: absolute;
           left: 0;
-          height: 3px;
-          border-radius: 3px;
-          background-size: 200% 100%;
-          animation: ybFlow 2.5s linear infinite;
+          height: 4px;
+          border-radius: 4px;
+          overflow: hidden;
         }
-        @keyframes ybFlow {
-          0% { background-position: 100% 0; }
-          100% { background-position: -100% 0; }
+
+        /* Di brayt layt drop / shimma animɛshɔn */
+        .yb-light-drop {
+          position: absolute;
+          top: 0;
+          left: -30%;
+          width: 35%;
+          height: 100%;
+          background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.9) 50%, transparent 100%);
+          animation: ybDropRun 2.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+        }
+        @keyframes ybDropRun {
+          0% { left: -35%; }
+          100% { left: 110%; }
         }
 
         .yb-points-row {
@@ -288,132 +259,55 @@ class YandexBusCard extends HTMLElement {
           align-items: center;
         }
         .yb-stop-point {
-          width: 7px;
-          height: 7px;
+          width: 8px;
+          height: 8px;
           border-radius: 50%;
-          background: #475569;
+          background: #334155;
           border: 2px solid #11141c;
-          transition: background 0.3s;
-          position: relative;
         }
         .yb-stop-point.passed {
           background: #ffffff;
         }
 
-        /* Бегущий автобус над линией */
+        /* Bɔs aykɔn we de shek smɔl-smɔl fɔ sho se i de muf */
         .yb-bus-runner {
           position: absolute;
-          top: -2px;
+          top: -3px;
           transform: translateX(-50%);
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          transition: left 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        .yb-bus-icon-wrap {
-          padding: 4px 6px;
-          border-radius: 8px;
-          background: rgba(255, 255, 255, 0.08);
-          border: 1px solid rgba(255, 255, 255, 0.15);
           display: flex;
           align-items: center;
           justify-content: center;
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+        }
+        .yb-bus-icon-wrap {
+          padding: 4px 7px;
+          border-radius: 8px;
+          background: rgba(17, 20, 28, 0.85);
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          animation: ybBusRide 1.4s ease-in-out infinite alternate;
+        }
+        @keyframes ybBusRide {
+          0% { transform: translateY(0px) rotate(0deg); }
+          50% { transform: translateY(-2px) rotate(1.5deg); }
+          100% { transform: translateY(1px) rotate(-1.5deg); }
         }
 
         .yb-subtext-points {
           display: flex;
           justify-content: space-between;
-          font-size: 9px;
+          font-size: 10px;
           color: #94a3b8;
           font-weight: 500;
-          letter-spacing: 0.2px;
-          margin-top: -2px;
-        }
-
-        /* Модалка карты */
-        .yb-modal-overlay {
-          position: fixed;
-          top: 0;
-          left: 0;
-          width: 100vw;
-          height: 100vh;
-          z-index: 9999;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-        .yb-modal-backdrop {
-          position: absolute;
-          top: 0;
-          left: 0;
-          width: 100%;
-          height: 100%;
-          background: rgba(0, 0, 0, 0.75);
-          backdrop-filter: blur(8px);
-        }
-        .yb-modal-container {
-          position: relative;
-          z-index: 10000;
-          width: 92vw;
-          max-width: 860px;
-          height: 82vh;
-          max-height: 740px;
-          background: #151821;
-          border-radius: 20px;
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          box-shadow: 0 25px 50px rgba(0,0,0,0.7);
-          display: flex;
-          flex-direction: column;
-          overflow: hidden;
-        }
-        .yb-modal-header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 14px 20px;
-          background: #0d0f14;
-          border-bottom: 1px solid rgba(255,255,255,0.08);
-        }
-        .yb-modal-title {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          font-size: 15px;
-          font-weight: 600;
-          color: #ffffff;
-        }
-        .yb-modal-close {
-          background: transparent;
-          border: none;
-          color: #94a3b8;
-          font-size: 20px;
-          cursor: pointer;
-          padding: 4px 8px;
-          border-radius: 6px;
-        }
-        .yb-modal-close:hover {
-          color: #ffffff;
-          background: rgba(255,255,255,0.1);
-        }
-        .yb-modal-body {
-          flex: 1;
-          width: 100%;
-          height: 100%;
-          background: #fff;
-        }
-        .yb-modal-body iframe {
-          width: 100%;
-          height: 100%;
-          border: none;
         }
       </style>
 
       <div class="yb-dashboard-card">
         <div class="yb-top-bar">
-          <div class="yb-stop-header" id="btn_open_stop">
+          <div class="yb-stop-header" onclick="window.open('${mapStopUrl}', '_blank')">
             <span class="yb-stop-main-title">Остановка "${stopName}"</span>
-            <ha-icon icon="mdi:chevron-right" style="--mdc-icon-size: 18px; color: #64748b;"></ha-icon>
+            <ha-icon icon="mdi:open-in-new" style="--mdc-icon-size: 18px; color: #64748b;"></ha-icon>
           </div>
           <div class="yb-clock-box">
             <div class="yb-pulse-dot"></div>
@@ -422,22 +316,20 @@ class YandexBusCard extends HTMLElement {
         </div>
 
         <div class="yb-items-list">
-          ${routes.length === 0 ? '<div style="color: #64748b; font-size: 14px; text-align: center; padding: 20px;">Нет активных маршрутов</div>' : ''}
+          ${routes.length === 0 ? '<div style="color: #64748b; text-align: center; padding: 20px;">Нет активных маршрутов</div>' : ''}
           ${routes.map((r, idx) => {
             const color = routeColors[idx % routeColors.length];
             const nextTime = r.next || (r.times && r.times[0]) || '--:--';
             const minsLeft = this._getMinutesLeft(nextTime);
 
-            // Расчет позиции автобуса на линии (от 15% до 90%)
-            // Если ехать 1-2 мин: автобус близко (80-90%). Если 15 мин: автобус дальше (20-30%)
             let progressPercent = 85 - (minsLeft * 4);
             if (progressPercent < 15) progressPercent = 15;
-            if (progressPercent > 92) progressPercent = 92;
+            if (progressPercent > 90) progressPercent = 90;
 
             const busUrl = r.map_url || `https://yandex.ru/maps/20/arkhangelsk/?text=автобус%20${encodeURIComponent(r.route)}&l=masstransit`;
 
             return `
-              <div class="yb-route-box" data-route="${r.route}" data-url="${busUrl}">
+              <div class="yb-route-box" onclick="window.open('${busUrl}', '_blank')">
                 <div class="yb-left-badge">
                   <div class="yb-badge-num" style="color: ${color};">${r.route}</div>
                   <div class="yb-badge-time">${minsLeft > 0 ? minsLeft + ' мин' : 'сейчас'}</div>
@@ -451,18 +343,20 @@ class YandexBusCard extends HTMLElement {
 
                   <div class="yb-line-wrap">
                     <div class="yb-track-bg"></div>
-                    <div class="yb-track-progress" style="width: ${progressPercent}%; background: linear-gradient(90deg, ${color}33 0\%,${color} 100%);"></div>
+                    <div class="yb-track-progress" style="width: ${progressPercent}\%; background:${color};">
+                      <div class="yb-light-drop"></div>
+                    </div>
 
                     <div class="yb-points-row">
                       <div class="yb-stop-point passed"></div>
                       <div class="yb-stop-point ${progressPercent > 35 ? 'passed' : ''}"></div>
                       <div class="yb-stop-point ${progressPercent > 65 ? 'passed' : ''}"></div>
-                      <div class="yb-stop-point ${progressPercent > 85 ? 'passed' : ''}"></div>
+                      <div class="yb-stop-point ${progressPercent > 80 ? 'passed' : ''}"></div>
                       <div class="yb-stop-point" style="background: ${color}; box-shadow: 0 0 8px${color};"></div>
                     </div>
 
                     <div class="yb-bus-runner" style="left: ${progressPercent}%;">
-                      <div class="yb-bus-icon-wrap" style="color: ${color}; box-shadow: 0 0 14px${color}55;">
+                      <div class="yb-bus-icon-wrap" style="color: ${color}; box-shadow: 0 0 16px${color}66;">
                         <ha-icon icon="mdi:bus-side" style="--mdc-icon-size: 20px;"></ha-icon>
                       </div>
                     </div>
@@ -470,7 +364,7 @@ class YandexBusCard extends HTMLElement {
 
                   <div class="yb-subtext-points">
                     <span>ПРЕДЫДУЩАЯ</span>
-                    <span>ПОДХОДИТ</span>
+                    <span>В ПУТИ</span>
                     <span>ОСТАНОВКА (${minsLeft} МИН)</span>
                   </div>
                 </div>
@@ -480,22 +374,6 @@ class YandexBusCard extends HTMLElement {
         </div>
       </div>
     `;
-
-    const stopHeader = this.content.querySelector('#btn_open_stop');
-    if (stopHeader) {
-      stopHeader.addEventListener('click', () => {
-        this.openModal(mapStopUrl, `Остановка: ${stopName}`);
-      });
-    }
-
-    const rows = this.content.querySelectorAll('.yb-route-box');
-    rows.forEach(row => {
-      row.addEventListener('click', () => {
-        const route = row.getAttribute('data-route');
-        const url = row.getAttribute('data-url');
-        this.openModal(url, `Автобус №${route} на карте Архангельска`);
-      });
-    });
   }
 
   static getConfigElement() {
@@ -514,9 +392,7 @@ class YandexBusCard extends HTMLElement {
 class YandexBusCardEditor extends HTMLElement {
   set hass(hass) {
     this._hass = hass;
-    if (this._form) {
-      this._form.hass = hass;
-    }
+    if (this._form) this._form.hass = hass;
   }
 
   setConfig(config) {
@@ -603,7 +479,7 @@ class YandexBusCardEditor extends HTMLElement {
     this._form.computeLabel = (s) => {
       const labels = {
         entity: 'Остановка (сенсор)',
-        title: 'Свое название остановки (необязательно)',
+        title: 'Свое название остановки',
         selected_buses: 'Нужные автобусы (мультивыбор)'
       };
       return labels[s.name] || s.name;
