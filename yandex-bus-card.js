@@ -124,6 +124,29 @@ class YandexBusBaseEditor extends HTMLElement {
   }
 }
 
+// Вспомогательная функция склонения остановок
+function formatStopsLeft(r, minsLeft) {
+  let count = 0;
+  if (r.stops_left !== undefined && r.stops_left !== null) {
+    count = parseInt(r.stops_left, 10);
+  } else if (r.stops_count !== undefined && r.stops_count !== null) {
+    count = parseInt(r.stops_count, 10);
+  } else {
+    if (minsLeft <= 1) count = 1;
+    else count = Math.max(1, Math.round(minsLeft / 2.5));
+  }
+
+  const mod10 = count % 10;
+  const mod100 = count % 100;
+  let word = 'остановок';
+  if (mod10 === 1 && mod100 !== 11) {
+    word = 'остановка';
+  } else if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) {
+    word = 'остановки';
+  }
+  return `${count} ${word}`;
+}
+
 // Карточка 1: Темный стекломорфизм
 class YandexBusDarkGlassCard extends HTMLElement {
   set hass(hass) {
@@ -301,6 +324,7 @@ class YandexBusDarkGlassCard extends HTMLElement {
         .yb-track-container { flex: 1; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
         .yb-route-meta { display: flex; align-items: center; justify-content: space-between; }
         .yb-route-dest { font-size: 13px; font-weight: 600; color: #f1f5f9; }
+        .yb-route-stops { font-size: 11px; font-weight: 500; color: #94a3b8; }
         .yb-line-wrap { position: relative; height: 28px; display: flex; align-items: center; }
         .yb-track-bg { position: absolute; left: 0; right: 0; height: 3px; background: rgba(255, 255, 255, 0.1); border-radius: 3px; }
         .yb-track-progress { position: absolute; left: 0; height: 3px; border-radius: 3px; overflow: hidden; }
@@ -340,6 +364,7 @@ class YandexBusDarkGlassCard extends HTMLElement {
             const color = routeColors[idx % routeColors.length];
             const nextTime = r.next || (r.times && r.times[0]) || '--:--';
             const minsLeft = this._getMinutesLeft(nextTime);
+            const stopsText = formatStopsLeft(r, minsLeft);
 
             let progressPercent = 88 - (minsLeft * 4);
             if (progressPercent < 15) progressPercent = 15;
@@ -358,6 +383,7 @@ class YandexBusDarkGlassCard extends HTMLElement {
                 <div class="yb-track-container">
                   <div class="yb-route-meta">
                     <span class="yb-route-dest">${arrivalLabel}</span>
+                    <span class="yb-route-stops">${stopsText}</span>
                   </div>
 
                   <div class="yb-line-wrap">
@@ -420,7 +446,6 @@ class YandexBusCityPylonCard extends HTMLElement {
       const card = document.createElement('ha-card');
       this.content = document.createElement('div');
       card.appendChild(this.content);
-      this.appendChild(card);
     }
     this.updateView();
   }
@@ -546,7 +571,7 @@ class YandexBusCityPylonCard extends HTMLElement {
         }
         .yb-pylon-right { text-align: right; }
         .yb-pylon-time { font-size: 18px; font-weight: 800; color: #0f172a; line-height: 1.1; }
-        .yb-pylon-stops-count { font-size: 10px; font-weight: 600; color: #64748b; }
+        .yb-pylon-stops-count { font-size: 11px; font-weight: 600; color: #64748b; margin-top: 2px; }
         .yb-pylon-track-wrap { position: relative; height: 22px; display: flex; align-items: center; }
         .yb-pylon-track-bar {
           position: absolute; left: 0; right: 0; height: 6px;
@@ -581,6 +606,7 @@ class YandexBusCityPylonCard extends HTMLElement {
             const color = palette[idx % palette.length];
             const nextTime = r.next || (r.times && r.times[0]) || '--:--';
             const minsLeft = this._getMinutesLeft(nextTime);
+            const stopsText = formatStopsLeft(r, minsLeft);
 
             let progressPercent = 88 - (minsLeft * 4);
             if (progressPercent < 15) progressPercent = 15;
@@ -600,7 +626,7 @@ class YandexBusCityPylonCard extends HTMLElement {
                   </div>
                   <div class="yb-pylon-right">
                     <div class="yb-pylon-time">${minsLeft > 0 ? minsLeft + ' мин' : 'сейчас'}</div>
-                    <div class="yb-pylon-stops-count">${nextTime}</div>
+                    <div class="yb-pylon-stops-count">${stopsText}</div>
                   </div>
                 </div>
 
