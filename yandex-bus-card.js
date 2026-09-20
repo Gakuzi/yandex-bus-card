@@ -15,6 +15,40 @@ class YandexBusCard extends HTMLElement {
     this.updateView();
   }
 
+  closeModal() {
+    const modal = this.querySelector('.yb-modal-overlay');
+    if (modal) {
+      modal.remove();
+    }
+  }
+
+  openModal(url, title) {
+    this.closeModal();
+
+    const overlay = document.createElement('div');
+    overlay.className = 'yb-modal-overlay';
+    overlay.innerHTML = `
+      <div class="yb-modal-backdrop"></div>
+      <div class="yb-modal-container">
+        <div class="yb-modal-header">
+          <div class="yb-modal-title">
+            <ha-icon icon="mdi:bus" style="--mdc-icon-size: 20px; color: #ffcc00;"></ha-icon>
+            <span>${title}</span>
+          </div>
+          <button class="yb-modal-close" title="Закрыть">✕</button>
+        </div>
+        <div class="yb-modal-body">
+          <iframe src="${url}" frameborder="0" allow="geolocation" allowfullscreen></iframe>
+        </div>
+      </div>
+    `;
+
+    overlay.querySelector('.yb-modal-backdrop').addEventListener('click', () => this.closeModal());
+    overlay.querySelector('.yb-modal-close').addEventListener('click', () => this.closeModal());
+
+    this.appendChild(overlay);
+  }
+
   updateView() {
     if (!this._hass || !this._config || !this.content) return;
     const entityId = this._config.entity;
@@ -24,7 +58,7 @@ class YandexBusCard extends HTMLElement {
         <div style="padding: 24px; text-align: center; color: var(--secondary-text-color);">
           <ha-icon icon="mdi:bus-stop" style="--mdc-icon-size: 40px; color: var(--primary-color); margin-bottom: 8px;"></ha-icon>
           <div style="font-size: 16px; font-weight: 600; color: var(--primary-text-color);">Остановка не выбрана</div>
-          <div style="font-size: 13px; margin-top: 4px;">Выберите сенсор остановки в редакторе</div>
+          <div style="font-size: 13px; margin-top: 4px;">Выберите сенсор остановки в настройках</div>
         </div>
       `;
       return;
@@ -52,7 +86,7 @@ class YandexBusCard extends HTMLElement {
 
     const mapStopUrl = stopId 
       ? `https://yandex.ru/maps/20/arkhangelsk/?masstransit%5BstopId%5D=stop__${stopId}&l=masstransit`
-      : 'https://yandex.ru/maps/20/arkhangelsk/';
+      : 'https://yandex.ru/maps/20/arkhangelsk/?l=masstransit';
 
     this.content.innerHTML = `
       <style>
@@ -64,6 +98,7 @@ class YandexBusCard extends HTMLElement {
           box-shadow: 0 8px 24px rgba(0,0,0,0.35);
           border: 1px solid rgba(255,255,255,0.06);
           font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+          position: relative;
         }
         .yb-header {
           display: flex;
@@ -76,6 +111,7 @@ class YandexBusCard extends HTMLElement {
           align-items: center;
           gap: 12px;
           cursor: pointer;
+          user-select: none;
         }
         .yb-stop-icon {
           background: #ffcc00;
@@ -110,10 +146,10 @@ class YandexBusCard extends HTMLElement {
           border: 1px solid rgba(255,255,255,0.05);
           padding: 10px 14px;
           border-radius: 12px;
-          text-decoration: none;
           color: inherit;
           transition: background 0.2s, transform 0.1s;
           cursor: pointer;
+          user-select: none;
         }
         .yb-row:hover {
           background: rgba(255,255,255,0.08);
@@ -150,17 +186,94 @@ class YandexBusCard extends HTMLElement {
           color: #ffcc00;
           text-align: right;
         }
+
+        /* Стили встроенного модального окна */
+        .yb-modal-overlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100vw;
+          height: 100vh;
+          z-index: 9999;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .yb-modal-backdrop {
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background: rgba(0, 0, 0, 0.7);
+          backdrop-filter: blur(4px);
+        }
+        .yb-modal-container {
+          position: relative;
+          z-index: 10000;
+          width: 90vw;
+          max-width: 800px;
+          height: 80vh;
+          max-height: 700px;
+          background: #1e222b;
+          border-radius: 16px;
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          box-shadow: 0 20px 50px rgba(0,0,0,0.6);
+          display: flex;
+          flex-direction: column;
+          overflow: hidden;
+        }
+        .yb-modal-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 12px 18px;
+          background: #14171d;
+          border-bottom: 1px solid rgba(255,255,255,0.06);
+        }
+        .yb-modal-title {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          font-size: 15px;
+          font-weight: 600;
+          color: #ffffff;
+        }
+        .yb-modal-close {
+          background: transparent;
+          border: none;
+          color: #8c9ba5;
+          font-size: 18px;
+          cursor: pointer;
+          padding: 4px 8px;
+          border-radius: 6px;
+        }
+        .yb-modal-close:hover {
+          color: #ffffff;
+          background: rgba(255,255,255,0.1);
+        }
+        .yb-modal-body {
+          flex: 1;
+          width: 100%;
+          height: 100%;
+          background: #fff;
+        }
+        .yb-modal-body iframe {
+          width: 100%;
+          height: 100%;
+          border: none;
+        }
       </style>
 
       <div class="yb-card">
         <div class="yb-header">
-          <div class="yb-stop-box" onclick="window.open('${mapStopUrl}', '_blank')">
+          <div class="yb-stop-box" id="btn_stop_map">
             <div class="yb-stop-icon">
               <ha-icon icon="mdi:bus-stop" style="--mdc-icon-size: 22px;"></ha-icon>
             </div>
             <div>
               <div class="yb-title">${stopName}</div>
-              <div class="yb-subtitle">Яндекс Карты (открыть остановку)</div>
+              <div class="yb-subtitle">Показать остановку на карте</div>
             </div>
           </div>
           <ha-icon icon="mdi:bus" style="color: #4cd964; --mdc-icon-size: 20px;"></ha-icon>
@@ -171,10 +284,8 @@ class YandexBusCard extends HTMLElement {
           ${routes.map(r => {
             const nextTime = r.next || (r.times && r.times[0]) || '-';
             const upcoming = (r.times || []).slice(1, 4).join(', ');
-            const busUrl = r.map_url || `https://yandex.ru/maps/20/arkhangelsk/?text=автобус%20${encodeURIComponent(r.route)}`;
-
             return `
-              <div class="yb-row" onclick="window.open('${busUrl}', '_blank')">
+              <div class="yb-row" data-route="${r.route}" data-lineid="${r.line_id \vert{}\vert{} ''}" data-url="${r.map_url || ''}">
                 <div style="display: flex; align-items: center;">
                   <div class="yb-num">${r.route}</div>
                   <div class="yb-dest-box">
@@ -188,6 +299,25 @@ class YandexBusCard extends HTMLElement {
         </div>
       </div>
     `;
+
+    // Слушатель клика на шапку (открытие карты остановки)
+    const stopBtn = this.content.querySelector('#btn_stop_map');
+    if (stopBtn) {
+      stopBtn.addEventListener('click', () => {
+        this.openModal(mapStopUrl, `Остановка: ${stopName}`);
+      });
+    }
+
+    // Слушатели клика на строки автобусов (открытие карты конкретного автобуса)
+    const rows = this.content.querySelectorAll('.yb-row');
+    rows.forEach(row => {
+      row.addEventListener('click', () => {
+        const route = row.getAttribute('data-route');
+        const url = row.getAttribute('data-url');
+        const targetUrl = url || `https://yandex.ru/maps/20/arkhangelsk/?text=автобус%20${encodeURIComponent(route)}&l=masstransit`;
+        this.openModal(targetUrl, `Автобус №${route} на карте Архангельска`);
+      });
+    });
   }
 
   static async getConfigElement() {
@@ -288,6 +418,6 @@ if (!window.customCards.some(card => card.type === 'yandex-bus-card')) {
   window.customCards.push({
     type: 'yandex-bus-card',
     name: 'Яндекс Автобусы (Остановка)',
-    description: 'Табло остановки с живым расписанием, фильтром маршрутов и кликом на карту'
+    description: 'Табло остановки с живым расписанием, фильтром маршрутов и модальной картой'
   });
 }
