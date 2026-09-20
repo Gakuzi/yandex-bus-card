@@ -11,7 +11,7 @@ class YandexBusCard extends HTMLElement {
   }
 
   setConfig(config) {
-    this._config = config;
+    this._config = config || {};
     this.updateView();
   }
 
@@ -24,7 +24,7 @@ class YandexBusCard extends HTMLElement {
         <div style="padding: 24px; text-align: center; color: var(--secondary-text-color);">
           <ha-icon icon="mdi:bus-stop" style="--mdc-icon-size: 40px; color: var(--primary-color); margin-bottom: 8px;"></ha-icon>
           <div style="font-size: 16px; font-weight: 600; color: var(--primary-text-color);">Остановка не выбрана</div>
-          <div style="font-size: 13px; margin-top: 4px;">Выберите сенсор остановки в редакторе слева</div>
+          <div style="font-size: 13px; margin-top: 4px;">Выберите сенсор остановки в форме настройки</div>
         </div>
       `;
       return;
@@ -32,7 +32,7 @@ class YandexBusCard extends HTMLElement {
 
     const stateObj = this._hass.states[entityId];
     if (!stateObj) {
-      this.content.innerHTML = `<div style="padding: 16px; color: var(--error-color);">Сущность ${entityId} не найдена</div>`;
+      this.content.innerHTML = `<div style="padding: 16px; color: var(--error-color);">Сущность <b>${entityId}</b> не найдена</div>`;
       return;
     }
 
@@ -42,8 +42,12 @@ class YandexBusCard extends HTMLElement {
     
     let routes = attrs.routes || [];
 
-    const selected = (this._config.selected_buses || []).map(s => String(s).trim());
-    if (selected.length > 0) {
+    // Фильтрация маршрутов
+    let selected = this._config.selected_buses || [];
+    if (typeof selected === 'string') {
+      selected = selected.split(',').map(s => s.trim()).filter(Boolean);
+    }
+    if (Array.isArray(selected) && selected.length > 0) {
       routes = routes.filter(r => selected.includes(String(r.route)));
     }
 
@@ -164,7 +168,7 @@ class YandexBusCard extends HTMLElement {
         </div>
 
         <div class="yb-list">
-          ${routes.length === 0 ? '<div style="color: #8c9ba5; font-size: 13px; padding: 6px;">Нет рейсов по заданным маршрутам</div>' : ''}
+          ${routes.length === 0 ? '<div style="color: #8c9ba5; font-size: 13px; padding: 6px;">Нет маршрутов</div>' : ''}
           ${routes.map(r => {
             const nextTime = r.next || (r.times && r.times[0]) || '-';
             const upcoming = (r.times || []).slice(1, 4).join(', ');
@@ -187,24 +191,26 @@ class YandexBusCard extends HTMLElement {
     `;
   }
 
-  // Для гарантированного вызова редактора в Lovelace
-  static async getConfigElement() {
+  static getConfigElement() {
     return document.createElement('yandex-bus-card-editor');
   }
 
   static getStubConfig() {
     return {
-      entity: '',
+      entity: 'sensor.taimyrskaia_ulitsa',
       title: '',
-      selected_buses: []
+      selected_buses: ''
     };
   }
 }
 
+// Редактор на базе ha-form (нативный визуальный конструктор Home Assistant)
 class YandexBusCardEditor extends HTMLElement {
   set hass(hass) {
     this._hass = hass;
-    this.render();
+    if (this._form) {
+      this._form.hass = hass;
+    }
   }
 
   setConfig(config) {
@@ -213,84 +219,58 @@ class YandexBusCardEditor extends HTMLElement {
   }
 
   render() {
-    if (!this._hass || this._rendered) return;
-    this._rendered = true;
+    if (!this._form) {
+      this._form = document.createElement('ha-form');
+      this.appendChild(this._form);
 
-    this.innerHTML = `
-      <div style="display: flex; flex-direction: column; gap: 16px; padding: 12px 0;">
-        <div>
-          <label style="display: block; font-weight: 500; font-size: 14px; margin-bottom: 6px; color: var(--primary-text-color);">
-            Сенсор остановки
-          </label>
-          <ha-entity-picker
-            id="entity_picker"
-            .hass=${this._hass}
-            .value=${this._config.entity || ''}
-            .includeDomains=${['sensor']}
-            allow-custom-entity
-            style="display: block; width: 100%;"
-          ></ha-entity-picker>
-        </div>
+      this._form.addEventListener('value-changed', (ev) => {
+        const value = ev.detail.value;
+        const newConfig = { ...this._config, ...value };
+        const event = new CustomEvent('config-changed', {
+          detail: { config: newConfig },
+          bubbles: true,
+          composed: true
+        });
+        this.dispatchEvent(event);
+      });
+    }
 
-        <div>
-          <label style="display: block; font-weight: 500; font-size: 14px; margin-bottom: 6px; color: var(--primary-text-color);">
-            Свое название остановки (необязательно)
-          </label>
-          <ha-textfield
-            id="title_input"
-            .value=${this._config.title || ''}
-            placeholder="По умолчанию из сенсора"
-            style="display: block; width: 100%;"
-          ></ha-textfield>
-        </div>
+    if (this._hass) {
+      this._form.hass = this._hass;
+    }
 
-        <div>
-          <label style="display: block; font-weight: 500; font-size: 14px; margin-bottom: 6px; color: var(--primary-text-color);">
-            Нужные маршруты (через запятую)
-          </label>
-          <ha-textfield
-            id="buses_input"
-            .value=${(this._config.selected_buses || []).join(', ')}
-            placeholder="Например: 1, 5, 10"
-            helper="Оставьте пустым, чтобы отображать все маршруты с этой остановки"
-            style="display: block; width: 100%;"
-          ></ha-textfield>
-        </div>
-      </div>
-    `;
+    this._form.data = {
+      entity: this._config.entity || '',
+      title: this._config.title || '',
+      selected_buses: Array.isArray(this._config.selected_buses) 
+        ? this._config.selected_buses.join(', ') 
+        : (this._config.selected_buses || '')
+    };
 
-    const entityPicker = this.querySelector('#entity_picker');
-    const titleInput = this.querySelector('#title_input');
-    const busesInput = this.querySelector('#buses_input');
+    this._form.schema = [
+      {
+        name: 'entity',
+        required: true,
+        selector: { entity: { domain: 'sensor' } }
+      },
+      {
+        name: 'title',
+        selector: { text: {} }
+      },
+      {
+        name: 'selected_buses',
+        selector: { text: {} }
+      }
+    ];
 
-    entityPicker.addEventListener('value-changed', (e) => {
-      this._valueChanged('entity', e.detail.value);
-    });
-
-    titleInput.addEventListener('input', (e) => {
-      this._valueChanged('title', e.target.value);
-    });
-
-    busesInput.addEventListener('change', (e) => {
-      const arr = e.target.value
-        .split(',')
-        .map(s => s.trim())
-        .filter(s => s.length > 0);
-      this._valueChanged('selected_buses', arr);
-    });
-  }
-
-  _valueChanged(key, value) {
-    if (!this._config) return;
-    const newConfig = { ...this._config, [key]: value };
-    this._config = newConfig;
-    
-    const event = new CustomEvent('config-changed', {
-      detail: { config: newConfig },
-      bubbles: true,
-      composed: true
-    });
-    this.dispatchEvent(event);
+    this._form.computeLabel = (schema) => {
+      const labels = {
+        entity: 'Сенсор остановки',
+        title: 'Название остановки (необязательно)',
+        selected_buses: 'Нужные маршруты через запятую (например: 1, 9, 10)'
+      };
+      return labels[schema.name] || schema.name;
+    };
   }
 }
 
