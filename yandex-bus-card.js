@@ -11,19 +11,28 @@ class YandexBusCard extends HTMLElement {
   }
 
   setConfig(config) {
-    if (!config.entity) {
-      throw new Error('Укажите сущность (entity)');
-    }
     this._config = config;
+    this.updateView();
   }
 
   updateView() {
-    if (!this._hass || !this._config) return;
+    if (!this._hass || !this._config || !this.content) return;
     const entityId = this._config.entity;
-    const stateObj = this._hass.states[entityId];
+    
+    if (!entityId) {
+      this.content.innerHTML = `
+        <div style="padding: 24px; text-align: center; color: var(--secondary-text-color);">
+          <ha-icon icon="mdi:bus-stop" style="--mdc-icon-size: 40px; color: var(--primary-color); margin-bottom: 8px;"></ha-icon>
+          <div style="font-size: 16px; font-weight: 600; color: var(--primary-text-color);">Остановка не выбрана</div>
+          <div style="font-size: 13px; margin-top: 4px;">Выберите сенсор остановки в редакторе слева</div>
+        </div>
+      `;
+      return;
+    }
 
+    const stateObj = this._hass.states[entityId];
     if (!stateObj) {
-      this.content.innerHTML = `<div style="padding: 16px; color: #ff5252;">Сущность ${entityId} не найдена</div>`;
+      this.content.innerHTML = `<div style="padding: 16px; color: var(--error-color);">Сущность ${entityId} не найдена</div>`;
       return;
     }
 
@@ -155,7 +164,7 @@ class YandexBusCard extends HTMLElement {
         </div>
 
         <div class="yb-list">
-          ${routes.length === 0 ? '<div style="color: #8c9ba5; font-size: 13px; padding: 6px;">Нет рейсов по заданным фильтрам</div>' : ''}
+          ${routes.length === 0 ? '<div style="color: #8c9ba5; font-size: 13px; padding: 6px;">Нет рейсов по заданным маршрутам</div>' : ''}
           ${routes.map(r => {
             const nextTime = r.next || (r.times && r.times[0]) || '-';
             const upcoming = (r.times || []).slice(1, 4).join(', ');
@@ -178,7 +187,8 @@ class YandexBusCard extends HTMLElement {
     `;
   }
 
-  static getConfigElement() {
+  // Для гарантированного вызова редактора в Lovelace
+  static async getConfigElement() {
     return document.createElement('yandex-bus-card-editor');
   }
 
@@ -198,44 +208,74 @@ class YandexBusCardEditor extends HTMLElement {
   }
 
   setConfig(config) {
-    this._config = config;
+    this._config = config || {};
     this.render();
   }
 
   render() {
-    if (!this._hass || !this._config) return;
-
-    const entities = Object.keys(this._hass.states).filter(e => 
-      e.startsWith('sensor.') && (e.includes('taimyrskaia') || e.includes('bus') || e.includes('yandex'))
-    );
+    if (!this._hass || this._rendered) return;
+    this._rendered = true;
 
     this.innerHTML = `
-      <div style="display: flex; flex-direction: column; gap: 14px; padding: 12px 0;">
+      <div style="display: flex; flex-direction: column; gap: 16px; padding: 12px 0;">
         <div>
-          <label style="display: block; font-weight: 500; margin-bottom: 4px;">Сенсор остановки</label>
-          <select id="entity_select" style="width: 100%; padding: 8px; border-radius: 6px; background: var(--card-background-color); color: var(--primary-text-color); border: 1px solid var(--divider-color);">
-            <option value="">Выберите сенсор</option>
-            ${entities.map(e => `<option value="${e}" ${this._config.entity === e ? 'selected' : ''}>${e}</option>`).join('')}
-          </select>
+          <label style="display: block; font-weight: 500; font-size: 14px; margin-bottom: 6px; color: var(--primary-text-color);">
+            Сенсор остановки
+          </label>
+          <ha-entity-picker
+            id="entity_picker"
+            .hass=${this._hass}
+            .value=${this._config.entity || ''}
+            .includeDomains=${['sensor']}
+            allow-custom-entity
+            style="display: block; width: 100%;"
+          ></ha-entity-picker>
         </div>
 
         <div>
-          <label style="display: block; font-weight: 500; margin-bottom: 4px;">Свое название остановки (необязательно)</label>
-          <input type="text" id="title_input" value="${this._config.title || ''}" placeholder="По умолчанию из сенсора" style="width: 100%; padding: 8px; border-radius: 6px; background: var(--card-background-color); color: var(--primary-text-color); border: 1px solid var(--divider-color);">
+          <label style="display: block; font-weight: 500; font-size: 14px; margin-bottom: 6px; color: var(--primary-text-color);">
+            Свое название остановки (необязательно)
+          </label>
+          <ha-textfield
+            id="title_input"
+            .value=${this._config.title || ''}
+            placeholder="По умолчанию из сенсора"
+            style="display: block; width: 100%;"
+          ></ha-textfield>
         </div>
 
         <div>
-          <label style="display: block; font-weight: 500; margin-bottom: 4px;">Нужные маршруты (через запятую)</label>
-          <input type="text" id="buses_input" value="${(this._config.selected_buses || []).join(', ')}" placeholder="Например: 1, 5, 10 (пусто = показывать все)" style="width: 100%; padding: 8px; border-radius: 6px; background: var(--card-background-color); color: var(--primary-text-color); border: 1px solid var(--divider-color);">
-          <div style="font-size: 11px; color: var(--secondary-text-color); margin-top: 4px;">Оставьте пустым, чтобы выводить все автобусы.</div>
+          <label style="display: block; font-weight: 500; font-size: 14px; margin-bottom: 6px; color: var(--primary-text-color);">
+            Нужные маршруты (через запятую)
+          </label>
+          <ha-textfield
+            id="buses_input"
+            .value=${(this._config.selected_buses || []).join(', ')}
+            placeholder="Например: 1, 5, 10"
+            helper="Оставьте пустым, чтобы отображать все маршруты с этой остановки"
+            style="display: block; width: 100%;"
+          ></ha-textfield>
         </div>
       </div>
     `;
 
-    this.querySelector('#entity_select').addEventListener('change', (e) => this._valueChanged('entity', e.target.value));
-    this.querySelector('#title_input').addEventListener('input', (e) => this._valueChanged('title', e.target.value));
-    this.querySelector('#buses_input').addEventListener('input', (e) => {
-      const arr = e.target.value.split(',').map(s => s.trim()).filter(s => s.length > 0);
+    const entityPicker = this.querySelector('#entity_picker');
+    const titleInput = this.querySelector('#title_input');
+    const busesInput = this.querySelector('#buses_input');
+
+    entityPicker.addEventListener('value-changed', (e) => {
+      this._valueChanged('entity', e.detail.value);
+    });
+
+    titleInput.addEventListener('input', (e) => {
+      this._valueChanged('title', e.target.value);
+    });
+
+    busesInput.addEventListener('change', (e) => {
+      const arr = e.target.value
+        .split(',')
+        .map(s => s.trim())
+        .filter(s => s.length > 0);
       this._valueChanged('selected_buses', arr);
     });
   }
@@ -243,6 +283,8 @@ class YandexBusCardEditor extends HTMLElement {
   _valueChanged(key, value) {
     if (!this._config) return;
     const newConfig = { ...this._config, [key]: value };
+    this._config = newConfig;
+    
     const event = new CustomEvent('config-changed', {
       detail: { config: newConfig },
       bubbles: true,
