@@ -1,5 +1,6 @@
 {
   "name": "Yandex Bus Card",
   "filename": "yandex-bus-card.js",
-  "render_readme": true
+  "render_readme": true,
+  "hacs": "1.6.0"
 }
