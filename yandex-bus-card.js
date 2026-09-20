@@ -124,7 +124,26 @@ class YandexBusBaseEditor extends HTMLElement {
   }
 }
 
-function formatStopsLeft(r, minsLeft) {
+// Форматирование количества остановок и проверка ночного рейса
+function getRouteStatus(r, minsLeft, nextTime) {
+  const isFarAway = minsLeft > 60;
+
+  if (isFarAway) {
+    let subStatus = 'Не на линии';
+    if (nextTime && nextTime.includes(':')) {
+      const h = parseInt(nextTime.split(':')[0], 10);
+      if (h >= 4 && h <= 11) {
+        subStatus = 'Первый рейс';
+      }
+    }
+    return {
+      isFarAway: true,
+      badgeTime: nextTime,
+      stopsText: subStatus,
+      arrivalLabel: `Первый рейс в ${nextTime}`
+    };
+  }
+
   let count = 0;
   if (r.stops_left !== undefined && r.stops_left !== null) {
     count = parseInt(r.stops_left, 10);
@@ -143,7 +162,13 @@ function formatStopsLeft(r, minsLeft) {
   } else if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) {
     word = 'остановки';
   }
-  return `${count} ${word}`;
+
+  return {
+    isFarAway: false,
+    badgeTime: minsLeft > 0 ? `${minsLeft} мин` : 'сейчас',
+    stopsText: `${count} ${word}`,
+    arrivalLabel: `Прибытие в ${nextTime}`
+  };
 }
 
 // Карточка 1: Темный стекломорфизм
@@ -309,6 +334,7 @@ class YandexBusDarkGlassCard extends HTMLElement {
           transition: background 0.15s ease, transform 0.1s ease;
         }
         .yb-route-box:hover { background: rgba(255, 255, 255, 0.07); transform: translateY(-1px); }
+        .yb-route-box.idle { opacity: 0.65; }
         .yb-left-badge {
           display: flex;
           flex-direction: column;
@@ -319,11 +345,11 @@ class YandexBusDarkGlassCard extends HTMLElement {
           padding-right: 10px;
         }
         .yb-badge-num { font-size: 24px; font-weight: 800; line-height: 1; letter-spacing: -0.5px; }
-        .yb-badge-time { font-size: 10px; color: #94a3b8; font-weight: 600; margin-top: 3px; text-transform: uppercase; }
+        .yb-badge-time { font-size: 10px; color: #94a3b8; font-weight: 600; margin-top: 3px; text-transform: uppercase; text-align: center; }
         .yb-track-container { flex: 1; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
         .yb-route-meta { display: flex; align-items: center; justify-content: space-between; }
         .yb-route-dest { font-size: 13px; font-weight: 600; color: #f1f5f9; }
-        .yb-route-stops { font-size: 11px; font-weight: 500; color: #94a3b8; }
+        .yb-route-stops { font-size: 11px; font-weight: 600; color: #94a3b8; }
         .yb-line-wrap { position: relative; height: 28px; display: flex; align-items: center; }
         .yb-track-bg { position: absolute; left: 0; right: 0; height: 3px; background: rgba(255, 255, 255, 0.1); border-radius: 3px; }
         .yb-track-progress { position: absolute; left: 0; height: 3px; border-radius: 3px; overflow: hidden; }
@@ -343,6 +369,17 @@ class YandexBusDarkGlassCard extends HTMLElement {
         }
         .yb-bus-runner ha-icon { --mdc-icon-size: 25px; filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.8)); }
         .yb-subtext-points { display: flex; justify-content: space-between; font-size: 9px; color: #94a3b8; font-weight: 500; margin-top: -1px; }
+        
+        .yb-sleep-banner {
+          font-size: 11px;
+          color: #94a3b8;
+          background: rgba(255,255,255,0.05);
+          padding: 4px 8px;
+          border-radius: 6px;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
       </style>
 
       <div class="yb-dashboard-card">
@@ -363,54 +400,61 @@ class YandexBusDarkGlassCard extends HTMLElement {
             const color = routeColors[idx % routeColors.length];
             const nextTime = r.next || (r.times && r.times[0]) || '--:--';
             const minsLeft = this._getMinutesLeft(nextTime);
-            const stopsText = formatStopsLeft(r, minsLeft);
+            const status = getRouteStatus(r, minsLeft, nextTime);
 
             let progressPercent = 88 - (minsLeft * 4);
             if (progressPercent < 15) progressPercent = 15;
             if (progressPercent > 92) progressPercent = 92;
 
             const busUrl = r.map_url || `https://yandex.ru/maps/20/arkhangelsk/?text=автобус%20${encodeURIComponent(r.route)}&l=masstransit`;
-            const arrivalLabel = showWord ? `Прибытие в ${nextTime}` : nextTime;
+            const headerLabel = showWord ? status.arrivalLabel : nextTime;
 
             return `
-              <div class="yb-route-box" onclick="window.open('${busUrl}', '_blank')">
+              <div class="yb-route-box ${status.isFarAway ? 'idle' : ''}" onclick="window.open('${busUrl}', '_blank')">
                 <div class="yb-left-badge">
-                  <div class="yb-badge-num" style="color: ${color};">${r.route}</div>
-                  <div class="yb-badge-time">${minsLeft > 0 ? minsLeft + ' мин' : 'сейчас'}</div>
+                  <div class="yb-badge-num" style="color: ${status.isFarAway ? '#64748b' : color};">${r.route}</div>
+                  <div class="yb-badge-time">${status.badgeTime}</div>
                 </div>
 
                 <div class="yb-track-container">
                   <div class="yb-route-meta">
-                    <span class="yb-route-dest">${arrivalLabel}</span>
-                    <span class="yb-route-stops">${stopsText}</span>
+                    <span class="yb-route-dest">${headerLabel}</span>
+                    <span class="yb-route-stops" style="color: ${status.isFarAway ? '#f59e0b' : '#94a3b8'};">${status.stopsText}</span>
                   </div>
 
-                  <div class="yb-line-wrap">
-                    <div class="yb-track-bg"></div>
-                    <div class="yb-track-progress" style="width: ${progressPercent}\%; background:${color};">
-                      <div class="yb-light-drop"></div>
+                  ${status.isFarAway ? `
+                    <div class="yb-sleep-banner">
+                      <ha-icon icon="mdi:moon-waning-crescent" style="--mdc-icon-size: 14px; color: #f59e0b;"></ha-icon>
+                      <span>Движение приостановлено до утра. Следующий рейс по расписанию.</span>
+                    </div>
+                  ` : `
+                    <div class="yb-line-wrap">
+                      <div class="yb-track-bg"></div>
+                      <div class="yb-track-progress" style="width: ${progressPercent}%; background: ${color};">
+                        <div class="yb-light-drop"></div>
+                      </div>
+
+                      <div class="yb-points-row">
+                        <div class="yb-stop-point passed"></div>
+                        <div class="yb-stop-point ${progressPercent > 35 ? 'passed' : ''}"></div>
+                        <div class="yb-stop-point ${progressPercent > 65 ? 'passed' : ''}"></div>
+                        <div class="yb-stop-point ${progressPercent > 80 ? 'passed' : ''}"></div>
+                        <div class="yb-stop-point" style="background: ${color};"></div>
+                      </div>
+
+                      <div class="yb-bus-runner" style="left: ${progressPercent}%;">
+                        <ha-icon icon="mdi:bus-side" style="color: ${color};"></ha-icon>
+                      </div>
                     </div>
 
-                    <div class="yb-points-row">
-                      <div class="yb-stop-point passed"></div>
-                      <div class="yb-stop-point ${progressPercent > 35 ? 'passed' : ''}"></div>
-                      <div class="yb-stop-point ${progressPercent > 65 ? 'passed' : ''}"></div>
-                      <div class="yb-stop-point ${progressPercent > 80 ? 'passed' : ''}"></div>
-                      <div class="yb-stop-point" style="background: ${color};"></div>
-                    </div>
-
-                    <div class="yb-bus-runner" style="left: ${progressPercent}%;">
-                      <ha-icon icon="mdi:bus-side" style="color: ${color};"></ha-icon>
-                    </div>
-                  </div>
-
-                  ${showSubtext ? `
-                    <div class="yb-subtext-points">
-                      <span>ПРЕДЫДУЩАЯ</span>
-                      <span>В ПУТИ</span>
-                      <span>ОСТАНОВКА</span>
-                    </div>
-                  ` : ''}
+                    ${showSubtext ? `
+                      <div class="yb-subtext-points">
+                        <span>ПРЕДЫДУЩАЯ</span>
+                        <span>В ПУТИ</span>
+                        <span>ОСТАНОВКА</span>
+                      </div>
+                    ` : ''}
+                  `}
                 </div>
               </div>
             `;
@@ -546,11 +590,12 @@ class YandexBusCityPylonCard extends HTMLElement {
           border: 1px solid rgba(255,255,255,0.6);
           cursor: pointer;
         }
+        .yb-pylon-item.idle { opacity: 0.75; }
         .yb-pylon-top {
           display: flex;
           align-items: center;
           justify-content: space-between;
-          margin-bottom: 10px;
+          margin-bottom: 8px;
         }
         .yb-pylon-left { display: flex; align-items: center; gap: 10px; }
         .yb-pylon-badge {
@@ -571,7 +616,7 @@ class YandexBusCityPylonCard extends HTMLElement {
         }
         .yb-pylon-right { text-align: right; }
         .yb-pylon-time { font-size: 18px; font-weight: 800; color: #0f172a; line-height: 1.1; }
-        .yb-pylon-stops-count { font-size: 11px; font-weight: 600; color: #64748b; margin-top: 2px; }
+        .yb-pylon-stops-count { font-size: 11px; font-weight: 700; color: #64748b; margin-top: 2px; }
         .yb-pylon-track-wrap { position: relative; height: 22px; display: flex; align-items: center; }
         .yb-pylon-track-bar {
           position: absolute; left: 0; right: 0; height: 6px;
@@ -596,6 +641,17 @@ class YandexBusCityPylonCard extends HTMLElement {
           display: flex; align-items: center; justify-content: center; color: #ffffff;
           border: 1px solid rgba(255,255,255,0.7);
         }
+        .yb-pylon-sleep-bar {
+          background: rgba(15, 23, 42, 0.06);
+          border-radius: 8px;
+          padding: 6px 10px;
+          font-size: 12px;
+          font-weight: 600;
+          color: #475569;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
       </style>
 
       <div class="yb-pylon-card">
@@ -606,7 +662,7 @@ class YandexBusCityPylonCard extends HTMLElement {
             const color = palette[idx % palette.length];
             const nextTime = r.next || (r.times && r.times[0]) || '--:--';
             const minsLeft = this._getMinutesLeft(nextTime);
-            const stopsText = formatStopsLeft(r, minsLeft);
+            const status = getRouteStatus(r, minsLeft, nextTime);
 
             let progressPercent = 88 - (minsLeft * 4);
             if (progressPercent < 15) progressPercent = 15;
@@ -616,38 +672,45 @@ class YandexBusCityPylonCard extends HTMLElement {
             const labelText = isNaN(r.route) ? r.route : `АВТОБУС ${r.route}`;
 
             return `
-              <div class="yb-pylon-item" onclick="window.open('${busUrl}', '_blank')">
+              <div class="yb-pylon-item ${status.isFarAway ? 'idle' : ''}" onclick="window.open('${busUrl}', '_blank')">
                 <div class="yb-pylon-top">
                   <div class="yb-pylon-left">
-                    <div class="yb-pylon-badge" style="background: ${color}; box-shadow: 0 3px 8px${color}88;">
+                    <div class="yb-pylon-badge" style="background: ${status.isFarAway ? '#64748b' : color}; box-shadow: 0 3px 8px ${status.isFarAway ? '#00000022' : color + '88'};">
                       <ha-icon icon="mdi:bus" style="--mdc-icon-size: 19px;"></ha-icon>
                     </div>
                     <span class="yb-pylon-routename">${labelText}</span>
                   </div>
                   <div class="yb-pylon-right">
-                    <div class="yb-pylon-time">${minsLeft > 0 ? minsLeft + ' мин' : 'сейчас'}</div>
-                    <div class="yb-pylon-stops-count">${stopsText}</div>
+                    <div class="yb-pylon-time">${status.badgeTime}</div>
+                    <div class="yb-pylon-stops-count" style="color: ${status.isFarAway ? '#d97706' : '#64748b'};">${status.stopsText}</div>
                   </div>
                 </div>
 
-                <div class="yb-pylon-track-wrap">
-                  <div class="yb-pylon-track-bar"></div>
-                  <div class="yb-pylon-progress-bar" style="width: ${progressPercent}\%; background:${color};">
-                    <div style="position:absolute; top:0; left:-40%; width:40%; height:100%; background:linear-gradient(90deg, transparent, rgba(255,255,255,0.8), transparent); animation: ybDropRun 2s infinite;"></div>
+                ${status.isFarAway ? `
+                  <div class="yb-pylon-sleep-bar">
+                    <ha-icon icon="mdi:moon-waning-crescent" style="--mdc-icon-size: 16px; color: #d97706;"></ha-icon>
+                    <span>Ожидание утреннего рейса по графику</span>
                   </div>
-                  <div class="yb-pylon-dots">
-                    <div class="yb-pylon-dot"></div>
-                    <div class="yb-pylon-dot"></div>
-                    <div class="yb-pylon-dot"></div>
-                    <div class="yb-pylon-dot"></div>
-                    <div class="yb-pylon-dot end"></div>
-                  </div>
-                  <div class="yb-pylon-runner" style="left: ${progressPercent}%;">
-                    <div class="yb-pylon-bus-box" style="background: ${color}; box-shadow: 0 4px 10px${color}aa;">
-                      <ha-icon icon="mdi:bus" style="--mdc-icon-size: 17px;"></ha-icon>
+                ` : `
+                  <div class="yb-pylon-track-wrap">
+                    <div class="yb-pylon-track-bar"></div>
+                    <div class="yb-pylon-progress-bar" style="width: ${progressPercent}%; background: ${color};">
+                      <div style="position:absolute; top:0; left:-40%; width:40%; height:100%; background:linear-gradient(90deg, transparent, rgba(255,255,255,0.8), transparent); animation: ybDropRun 2s infinite;"></div>
+                    </div>
+                    <div class="yb-pylon-dots">
+                      <div class="yb-pylon-dot"></div>
+                      <div class="yb-pylon-dot"></div>
+                      <div class="yb-pylon-dot"></div>
+                      <div class="yb-pylon-dot"></div>
+                      <div class="yb-pylon-dot end"></div>
+                    </div>
+                    <div class="yb-pylon-runner" style="left: ${progressPercent}%;">
+                      <div class="yb-pylon-bus-box" style="background: ${color}; box-shadow: 0 4px 10px ${color}aa;">
+                        <ha-icon icon="mdi:bus" style="--mdc-icon-size: 17px;"></ha-icon>
+                      </div>
                     </div>
                   </div>
-                </div>
+                `}
               </div>
             `;
           }).join('')}
